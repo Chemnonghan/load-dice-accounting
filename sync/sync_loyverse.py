@@ -24,8 +24,10 @@ LOYVERSE_ACCESS_TOKEN = os.environ.get("LOYVERSE_ACCESS_TOKEN")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 
-# จำนวนวันย้อนหลังที่จะดึงข้อมูลทุกครั้งที่ sync (ครอบคลุมพอให้ข้อมูลที่แก้ไขย้อนหลังอัปเดตด้วย)
-SYNC_LOOKBACK_DAYS = int(os.environ.get("SYNC_LOOKBACK_DAYS", "45"))
+# จำนวนวันย้อนหลังที่จะดึงข้อมูลทุกครั้งที่ sync
+# Loyverse แพ็กเกจปกติจำกัดให้ดึงย้อนหลังได้ไม่เกิน 31 วัน (เกินกว่านี้ API จะตอบ 402)
+# ถ้าร้านซื้อ add-on "Unlimited Sales History" แล้ว ค่อยปรับตัวเลขนี้ให้มากขึ้นได้
+SYNC_LOOKBACK_DAYS = int(os.environ.get("SYNC_LOOKBACK_DAYS", "30"))
 
 # ชื่อ category ใน Loyverse ที่ถือเป็น "ค่าเช่าเกม/ชั่วโมงเล่น" (ไม่ใช่สินค้าขาย)
 # ตั้งเป็น "ค่าบริการ" ตามชื่อ category จริงที่ใช้ในร้าน
