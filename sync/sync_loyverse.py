@@ -86,6 +86,31 @@ def classify_revenue_type(category_name):
     return "product_sale"
 
 
+def build_item_category_map():
+    """
+    Loyverse ไม่ได้แนบชื่อ category มากับ line_items ของ receipts โดยตรง
+    (เช็คจากตัวอย่าง response จริงแล้วไม่มี field category_name/item_category)
+    ต้องดึง /categories + /items แยกมาต่างหาก แล้วสร้างตาราง item_id/variant_id -> category_name เอง
+    """
+    print("ดึง categories + items เพื่อสร้างตารางจับคู่หมวดสินค้า ...")
+    categories = fetch_loyverse_paginated("/categories", {"limit": 250})
+    category_name_by_id = {c["id"]: c.get("name") for c in categories}
+
+    items = fetch_loyverse_paginated("/items", {"limit": 250})
+    item_category_name = {}
+    for it in items:
+        cat_name = category_name_by_id.get(it.get("category_id"))
+        if it.get("id"):
+            item_category_name[it["id"]] = cat_name
+        for v in it.get("variants") or []:
+            vid = v.get("variant_id") or v.get("id")
+            if vid:
+                item_category_name[vid] = cat_name
+
+    print(f"จับคู่ item/variant ได้ {len(item_category_name)} รายการ")
+    return item_category_name
+
+
 def upsert_supabase(table, rows):
     if not rows:
         return
@@ -107,7 +132,7 @@ def log_sync(status, message):
         print(f"ไม่สามารถบันทึก sync_log ได้: {e}", file=sys.stderr)
 
 
-def sync_receipts(since_iso):
+def sync_receipts(since_iso, item_category_name):
     print(f"ดึง receipts ตั้งแต่ {since_iso} ...")
     receipts_raw = fetch_loyverse_paginated(
         "/receipts",
@@ -136,7 +161,11 @@ def sync_receipts(since_iso):
         )
 
         for idx, li in enumerate(r.get("line_items", [])):
-            category_name = li.get("category_name") or li.get("item_category") or None
+            # receipts ของ Loyverse ไม่มีชื่อ category แนบมาโดยตรง ต้องจับคู่เอาจาก
+            # item_id/variant_id -> category_name ที่ดึงมาจาก /items + /categories ล่วงหน้า
+            category_name = item_category_name.get(li.get("item_id")) or item_category_name.get(
+                li.get("variant_id")
+            )
             line_item_rows.append(
                 {
                     "id": f"{receipt_id}-{idx}",
@@ -183,7 +212,8 @@ def main():
     since_iso = since.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
     try:
-        n_receipts = sync_receipts(since_iso)
+        item_category_name = build_item_category_map()
+        n_receipts = sync_receipts(since_iso, item_category_name)
         n_inventory = sync_inventory()
         log_sync("success", f"synced {n_receipts} receipts, {n_inventory} inventory rows")
         print("Sync สำเร็จ")
