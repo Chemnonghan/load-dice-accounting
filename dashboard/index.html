@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Load Dice — ระบบบัญชี</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -11,13 +14,17 @@
 <body>
 
 <!-- หน้า login -->
-<div id="login-view" class="login-box card">
-  <h2 style="margin-top:0">Load Dice — เข้าสู่ระบบ</h2>
+<div id="login-view" class="login-box">
+  <div class="login-logo">
+    <span class="dice-icon">&#9861;</span>
+    <span class="brand-name">Load Dice</span>
+  </div>
+  <p class="login-subtitle">ระบบบัญชีร้าน — เข้าสู่ระบบเพื่อดูรายงาน</p>
   <input id="login-email" type="email" placeholder="อีเมล">
   <input id="login-password" type="password" placeholder="รหัสผ่าน">
   <div id="login-error" class="error-text hidden"></div>
   <button id="login-btn" style="width:100%">เข้าสู่ระบบ</button>
-  <p style="font-size:12px;color:#6b7280;margin-top:12px">
+  <p class="login-hint">
     บัญชีสร้างโดยเจ้าของร้านผ่าน Supabase Dashboard เท่านั้น ถ้ายังไม่มีบัญชีให้ติดต่อเจ้าของร้าน
   </p>
 </div>
@@ -25,9 +32,12 @@
 <!-- หน้าแอปหลัง login -->
 <div id="app-view" class="hidden">
   <header>
-    <h1>Load Dice — ระบบบัญชี</h1>
-    <div>
-      <span id="user-email" style="margin-right:12px;font-size:13px"></span>
+    <div class="brand">
+      <span class="dice-icon">&#9861;</span>
+      <h1>Load Dice <span>ระบบบัญชี</span></h1>
+    </div>
+    <div class="header-actions">
+      <span id="user-email"></span>
       <button class="secondary" id="logout-btn">ออกจากระบบ</button>
     </div>
   </header>
@@ -73,13 +83,13 @@
 
     <div class="card">
       <h2>ช่วงเวลาที่มีการใช้บริการบ่อย</h2>
-      <div class="kpi-grid" style="margin-bottom:16px">
+      <div class="split-grid">
         <div>
-          <p style="font-size:13px;color:#6b7280;margin-bottom:6px">ตามชั่วโมงในแต่ละวัน</p>
+          <p class="chart-caption">ตามชั่วโมงในแต่ละวัน</p>
           <canvas id="hour-usage-chart" height="140"></canvas>
         </div>
         <div>
-          <p style="font-size:13px;color:#6b7280;margin-bottom:6px">ตามวันในสัปดาห์</p>
+          <p class="chart-caption">ตามวันในสัปดาห์</p>
           <canvas id="weekday-usage-chart" height="140"></canvas>
         </div>
       </div>

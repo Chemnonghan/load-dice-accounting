@@ -126,22 +126,23 @@ function renderTrendChart(monthlyRowsDesc) {
         {
           label: "รายได้รวม",
           data: rows.map((r) => r.total_revenue),
-          borderColor: "#2563eb",
-          backgroundColor: "rgba(37,99,235,0.1)",
+          borderColor: "#f97316",
+          backgroundColor: "rgba(249,115,22,0.12)",
           tension: 0.3,
+          fill: true,
         },
         {
           label: "รายจ่ายอื่น",
           data: rows.map((r) => r.total_expense),
           borderColor: "#dc2626",
-          backgroundColor: "rgba(220,38,38,0.1)",
+          backgroundColor: "rgba(220,38,38,0.08)",
           tension: 0.3,
         },
         {
           label: "กำไรสุทธิ",
           data: rows.map((r) => r.net_income),
           borderColor: "#15803d",
-          backgroundColor: "rgba(21,128,61,0.1)",
+          backgroundColor: "rgba(21,128,61,0.08)",
           tension: 0.3,
         },
       ],
@@ -276,7 +277,8 @@ async function loadServiceUsage() {
         {
           label: "จำนวนครั้งที่ใช้บริการ",
           data: rows.map((r) => r.usage_count),
-          backgroundColor: "#2563eb",
+          backgroundColor: "#f97316",
+          borderRadius: 6,
         },
       ],
     },
@@ -319,7 +321,7 @@ async function loadTimePatterns() {
     type: "bar",
     data: {
       labels: hourLabels,
-      datasets: [{ label: "จำนวนครั้ง", data: hourValues, backgroundColor: "#f59e0b" }],
+      datasets: [{ label: "จำนวนครั้ง", data: hourValues, backgroundColor: "#fb923c", borderRadius: 4 }],
     },
     options: { responsive: true, plugins: { legend: { display: false } } },
   });
@@ -332,7 +334,7 @@ async function loadTimePatterns() {
     type: "bar",
     data: {
       labels: WEEKDAY_NAMES_TH,
-      datasets: [{ label: "จำนวนครั้ง", data: dowValues, backgroundColor: "#8b5cf6" }],
+      datasets: [{ label: "จำนวนครั้ง", data: dowValues, backgroundColor: "#c2410c", borderRadius: 4 }],
     },
     options: { responsive: true, plugins: { legend: { display: false } } },
   });
