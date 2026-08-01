@@ -15,6 +15,25 @@ function monthLabel(dateStr) {
   return d.toLocaleDateString("th-TH", { year: "numeric", month: "long" });
 }
 
+function monthLabelShort(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("th-TH", { year: "2-digit", month: "short" });
+}
+
+const WEEKDAY_NAMES_TH = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสฯ", "ศุกร์", "เสาร์"];
+
+// เก็บ instance ของกราฟไว้ทำลายทิ้งก่อนวาดใหม่ทุกครั้งที่ reload ข้อมูล
+const charts = {};
+
+function renderChart(canvasId, config) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+  charts[canvasId] = new Chart(canvas.getContext("2d"), config);
+}
+
 async function checkSession() {
   const { data } = await client.auth.getSession();
   if (data.session) {
@@ -55,7 +74,7 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 });
 
 async function loadDashboard() {
-  await Promise.all([loadPL(), loadExpenses()]);
+  await Promise.all([loadPL(), loadExpenses(), loadServiceUsage(), loadTimePatterns()]);
 }
 
 async function loadPL() {
@@ -94,6 +113,45 @@ async function loadPL() {
   });
 
   renderKPI(data[0], data[1]);
+  renderTrendChart(data);
+}
+
+function renderTrendChart(monthlyRowsDesc) {
+  const rows = [...monthlyRowsDesc].reverse(); // เรียงเก่า -> ใหม่ สำหรับกราฟเส้น
+  renderChart("trend-chart", {
+    type: "line",
+    data: {
+      labels: rows.map((r) => monthLabelShort(r.month)),
+      datasets: [
+        {
+          label: "รายได้รวม",
+          data: rows.map((r) => r.total_revenue),
+          borderColor: "#2563eb",
+          backgroundColor: "rgba(37,99,235,0.1)",
+          tension: 0.3,
+        },
+        {
+          label: "รายจ่ายอื่น",
+          data: rows.map((r) => r.total_expense),
+          borderColor: "#dc2626",
+          backgroundColor: "rgba(220,38,38,0.1)",
+          tension: 0.3,
+        },
+        {
+          label: "กำไรสุทธิ",
+          data: rows.map((r) => r.net_income),
+          borderColor: "#15803d",
+          backgroundColor: "rgba(21,128,61,0.1)",
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: "bottom" } },
+      scales: { y: { ticks: { callback: (v) => v.toLocaleString("th-TH") } } },
+    },
+  });
 }
 
 function renderKPI(current, prior) {
@@ -195,5 +253,89 @@ document.getElementById("expense-form").addEventListener("submit", async (e) => 
   e.target.reset();
   loadDashboard();
 });
+
+async function loadServiceUsage() {
+  const { data, error } = await client
+    .from("v_service_usage_by_item")
+    .select("*")
+    .order("usage_count", { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const rows = data || [];
+
+  renderChart("service-usage-chart", {
+    type: "bar",
+    data: {
+      labels: rows.map((r) => r.item_name || "(ไม่ระบุชื่อ)"),
+      datasets: [
+        {
+          label: "จำนวนครั้งที่ใช้บริการ",
+          data: rows.map((r) => r.usage_count),
+          backgroundColor: "#2563eb",
+        },
+      ],
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      plugins: { legend: { display: false } },
+    },
+  });
+
+  const tbody = document.querySelector("#service-usage-table tbody");
+  tbody.innerHTML = "";
+  rows.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.item_name || "(ไม่ระบุชื่อ)"}</td>
+      <td>${row.usage_count}</td>
+      <td>${row.total_quantity}</td>
+      <td>${thb(row.total_revenue)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadTimePatterns() {
+  const [{ data: hourData, error: hourError }, { data: dowData, error: dowError }] = await Promise.all([
+    client.from("v_service_usage_by_hour").select("*").order("hour_of_day", { ascending: true }),
+    client.from("v_service_usage_by_weekday").select("*").order("weekday_number", { ascending: true }),
+  ]);
+
+  if (hourError) console.error(hourError);
+  if (dowError) console.error(dowError);
+
+  // เติมชั่วโมงที่ไม่มีข้อมูลให้เป็น 0 เพื่อให้กราฟแสดงครบ 0-23 ชม.
+  const hourMap = new Map((hourData || []).map((r) => [r.hour_of_day, r.usage_count]));
+  const hourLabels = Array.from({ length: 24 }, (_, h) => `${h}:00`);
+  const hourValues = Array.from({ length: 24 }, (_, h) => hourMap.get(h) || 0);
+
+  renderChart("hour-usage-chart", {
+    type: "bar",
+    data: {
+      labels: hourLabels,
+      datasets: [{ label: "จำนวนครั้ง", data: hourValues, backgroundColor: "#f59e0b" }],
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+
+  // เติมวันที่ไม่มีข้อมูลให้เป็น 0 ด้วยเช่นกัน (0 = อาทิตย์ ... 6 = เสาร์)
+  const dowMap = new Map((dowData || []).map((r) => [r.weekday_number, r.usage_count]));
+  const dowValues = WEEKDAY_NAMES_TH.map((_, i) => dowMap.get(i) || 0);
+
+  renderChart("weekday-usage-chart", {
+    type: "bar",
+    data: {
+      labels: WEEKDAY_NAMES_TH,
+      datasets: [{ label: "จำนวนครั้ง", data: dowValues, backgroundColor: "#8b5cf6" }],
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+}
 
 checkSession();

@@ -114,6 +114,38 @@ from rev
 full outer join exp on rev.month = exp.month
 order by 1 desc;
 
+-- บริการ (ค่าเช่าเกม/ชั่วโมงเล่น) ที่ถูกใช้บ่อยที่สุด เรียงตามจำนวนครั้งที่ขาย
+create or replace view v_service_usage_by_item as
+select
+  item_name,
+  count(*) as usage_count,
+  sum(quantity) as total_quantity,
+  sum(total_money) as total_revenue
+from receipt_line_items
+where revenue_type = 'game_rental'
+group by item_name
+order by usage_count desc;
+
+-- ช่วงเวลา (ชั่วโมงของวัน) ที่มีการใช้บริการบ่อยที่สุด (0-23, เวลาไทย UTC+7)
+create or replace view v_service_usage_by_hour as
+select
+  extract(hour from receipt_date at time zone 'Asia/Bangkok')::int as hour_of_day,
+  count(*) as usage_count
+from receipt_line_items
+where revenue_type = 'game_rental'
+group by 1
+order by 1;
+
+-- วันในสัปดาห์ที่มีการใช้บริการบ่อยที่สุด (0 = อาทิตย์ ... 6 = เสาร์, เวลาไทย)
+create or replace view v_service_usage_by_weekday as
+select
+  extract(dow from receipt_date at time zone 'Asia/Bangkok')::int as weekday_number,
+  count(*) as usage_count
+from receipt_line_items
+where revenue_type = 'game_rental'
+group by 1
+order by 1;
+
 -- ------------------------------------------------------------
 -- 4. Row Level Security — เฉพาะผู้ที่ login (authenticated) เท่านั้นถึงอ่านได้
 --    การเขียนตาราง receipts / receipt_line_items / inventory_levels ทำผ่าน

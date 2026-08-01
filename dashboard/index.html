@@ -6,6 +6,7 @@
 <title>Load Dice — ระบบบัญชี</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
 
@@ -52,6 +53,36 @@
         </thead>
         <tbody></tbody>
       </table>
+    </div>
+
+    <div class="card">
+      <h2>แนวโน้มรายรับ-รายจ่าย</h2>
+      <canvas id="trend-chart" height="90"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>บริการที่ใช้บ่อยที่สุด</h2>
+      <canvas id="service-usage-chart" height="100"></canvas>
+      <table id="service-usage-table" style="margin-top:16px">
+        <thead>
+          <tr><th>บริการ</th><th>จำนวนครั้งที่ใช้</th><th>จำนวนรวม</th><th>รายได้รวม</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>ช่วงเวลาที่มีการใช้บริการบ่อย</h2>
+      <div class="kpi-grid" style="margin-bottom:16px">
+        <div>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:6px">ตามชั่วโมงในแต่ละวัน</p>
+          <canvas id="hour-usage-chart" height="140"></canvas>
+        </div>
+        <div>
+          <p style="font-size:13px;color:#6b7280;margin-bottom:6px">ตามวันในสัปดาห์</p>
+          <canvas id="weekday-usage-chart" height="140"></canvas>
+        </div>
+      </div>
     </div>
 
     <div class="card">
