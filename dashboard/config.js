@@ -4,4 +4,6 @@
 window.SUPABASE_CONFIG = {
   url: "https://xwugnomzfggwyfhtjdnh.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3dWdub216Zmdnd3lmaHRqZG5oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1OTE4MzIsImV4cCI6MjEwMTE2NzgzMn0.Mmcx8zGMIpbvIjvowRy4QQOY40saOQHbp9dMAxuaizU",
+  url: "https://YOUR-PROJECT-REF.supabase.co",
+  anonKey: "YOUR-SUPABASE-ANON-KEY", d9d5fffda1b4f8e93da3172b82d4b608a9f683cf
 };
