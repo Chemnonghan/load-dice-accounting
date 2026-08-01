@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Load Dice — ระบบบัญชี</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- หน้า login -->
+<div id="login-view" class="login-box card">
+  <h2 style="margin-top:0">Load Dice — เข้าสู่ระบบ</h2>
+  <input id="login-email" type="email" placeholder="อีเมล">
+  <input id="login-password" type="password" placeholder="รหัสผ่าน">
+  <div id="login-error" class="error-text hidden"></div>
+  <button id="login-btn" style="width:100%">เข้าสู่ระบบ</button>
+  <p style="font-size:12px;color:#6b7280;margin-top:12px">
+    บัญชีสร้างโดยเจ้าของร้านผ่าน Supabase Dashboard เท่านั้น ถ้ายังไม่มีบัญชีให้ติดต่อเจ้าของร้าน
+  </p>
+</div>
+
+<!-- หน้าแอปหลัง login -->
+<div id="app-view" class="hidden">
+  <header>
+    <h1>Load Dice — ระบบบัญชี</h1>
+    <div>
+      <span id="user-email" style="margin-right:12px;font-size:13px"></span>
+      <button class="secondary" id="logout-btn">ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>สรุปรายเดือน</h2>
+      <div id="kpi-grid" class="kpi-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>รายรับ-รายจ่าย รายเดือน</h2>
+      <table id="pl-table">
+        <thead>
+          <tr>
+            <th>เดือน</th>
+            <th>รายได้ขาย</th>
+            <th>รายได้ค่าเช่าเกม</th>
+            <th>ต้นทุนสินค้า</th>
+            <th>รายจ่ายอื่น</th>
+            <th>กำไรสุทธิ</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>กรอกรายจ่าย</h2>
+      <form id="expense-form" class="form-grid">
+        <input type="date" id="exp-date" required>
+        <select id="exp-category" required>
+          <option value="">เลือกหมวด</option>
+          <option>ค่าเช่าร้าน</option>
+          <option>เงินเดือนพนักงาน</option>
+          <option>ซื้อบอร์ดเกมใหม่</option>
+          <option>ค่าน้ำค่าไฟ</option>
+          <option>อื่นๆ</option>
+        </select>
+        <input type="number" id="exp-amount" placeholder="จำนวนเงิน (บาท)" min="0" step="0.01" required>
+        <input type="text" id="exp-desc" placeholder="รายละเอียด (ถ้ามี)">
+        <div class="full">
+          <button type="submit">บันทึกรายจ่าย</button>
+        </div>
+        <div id="expense-message" class="full" style="font-size:13px"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>รายจ่ายล่าสุด</h2>
+      <table id="expense-table">
+        <thead>
+          <tr><th>วันที่</th><th>หมวด</th><th>รายละเอียด</th><th>จำนวนเงิน</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
