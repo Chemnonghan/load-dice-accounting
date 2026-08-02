@@ -83,7 +83,14 @@ const dateRange = { from: null, to: null };
 let lastPLRows = [];
 
 async function loadDashboard() {
-  await Promise.all([loadPL(), loadExpenses(), loadServiceUsage(), loadTimePatterns(), loadBudgetVariance()]);
+  await Promise.all([
+    loadPL(),
+    loadExpenses(),
+    loadServiceUsage(),
+    loadTimePatterns(),
+    loadBudgetVariance(),
+    loadLowStockAlerts(),
+  ]);
 }
 
 async function loadPL() {
@@ -466,6 +473,140 @@ document.getElementById("budget-form").addEventListener("submit", async (e) => {
   msg.textContent = "บันทึกงบประมาณเรียบร้อย";
   e.target.reset();
   loadBudgetVariance();
+});
+
+async function loadLowStockAlerts() {
+  const alertBox = document.getElementById("low-stock-alerts");
+
+  const { data: lowStock, error: lowStockError } = await client
+    .from("v_low_stock")
+    .select("*")
+    .order("in_stock", { ascending: true });
+
+  if (lowStockError) {
+    console.error(lowStockError);
+    alertBox.innerHTML = "";
+  } else if (!lowStock || lowStock.length === 0) {
+    alertBox.innerHTML = '<div class="alert-empty">สต็อกทุกรายการที่ตั้งเกณฑ์ไว้ยังอยู่ในระดับปกติ</div>';
+  } else {
+    alertBox.innerHTML = lowStock
+      .map(
+        (row) => `
+      <div class="alert-item">
+        <span class="name">${row.item_name || "(ไม่ระบุชื่อ)"}</span>
+        <span class="qty">เหลือ ${row.in_stock} ชิ้น (เกณฑ์ ${row.threshold})</span>
+      </div>
+    `
+      )
+      .join("");
+  }
+
+  await Promise.all([populateStockItemSelect(), loadStockWatchlist()]);
+}
+
+async function populateStockItemSelect() {
+  const select = document.getElementById("stock-item-select");
+  const currentValue = select.value;
+
+  const { data, error } = await client
+    .from("v_latest_inventory")
+    .select("item_id, item_name")
+    .order("item_name", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  select.innerHTML = '<option value="">เลือกสินค้า</option>';
+  (data || [])
+    .filter((r) => r.item_name)
+    .forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r.item_id;
+      opt.textContent = r.item_name;
+      opt.dataset.itemName = r.item_name;
+      select.appendChild(opt);
+    });
+
+  if (currentValue) select.value = currentValue;
+}
+
+async function loadStockWatchlist() {
+  const { data, error } = await client
+    .from("v_stock_watchlist")
+    .select("*")
+    .order("item_name", { ascending: true });
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const tbody = document.querySelector("#stock-watchlist-table tbody");
+  tbody.innerHTML = "";
+  (data || []).forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.item_name || "(ไม่ระบุชื่อ)"}</td>
+      <td>${row.in_stock ?? "-"}</td>
+      <td>${row.threshold}</td>
+      <td><button type="button" class="icon-btn" data-remove-item="${row.item_id}">ลบ</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("[data-remove-item]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { error: delError } = await client
+        .from("stock_thresholds")
+        .delete()
+        .eq("item_id", btn.dataset.removeItem);
+      if (delError) {
+        console.error(delError);
+        return;
+      }
+      loadLowStockAlerts();
+    });
+  });
+}
+
+document.getElementById("stock-threshold-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("stock-threshold-message");
+  msg.textContent = "";
+
+  const select = document.getElementById("stock-item-select");
+  const itemId = select.value;
+  const itemName = select.selectedOptions[0]?.dataset.itemName || null;
+  const threshold = parseFloat(document.getElementById("stock-threshold-value").value);
+
+  if (!itemId) return;
+
+  const { data: sessionData } = await client.auth.getSession();
+  const userId = sessionData.session.user.id;
+
+  const { error } = await client.from("stock_thresholds").upsert(
+    {
+      item_id: itemId,
+      item_name: itemName,
+      threshold,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "item_id" }
+  );
+
+  if (error) {
+    msg.style.color = "#dc2626";
+    msg.textContent = "บันทึกไม่สำเร็จ: " + error.message;
+    return;
+  }
+
+  msg.style.color = "#15803d";
+  msg.textContent = "บันทึกเกณฑ์เรียบร้อย";
+  e.target.reset();
+  loadLowStockAlerts();
 });
 
 checkSession();

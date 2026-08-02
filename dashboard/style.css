@@ -219,6 +219,38 @@ tbody tr:last-child td { border-bottom: none; }
   .no-print { display: none !important; }
 }
 
+/* ---------- Low stock alerts ---------- */
+.alert-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.alert-item .name { font-weight: 500; color: var(--ink); }
+.alert-item .qty { color: var(--danger); font-weight: 600; }
+.alert-empty {
+  padding: 14px 16px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-md);
+  color: var(--success);
+  font-size: 14px;
+}
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.icon-btn:hover { text-decoration: underline; background: none; }
+
 /* ---------- Budget variance badges ---------- */
 .badge {
   display: inline-block;

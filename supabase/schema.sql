@@ -48,6 +48,16 @@ create table if not exists inventory_levels (
 
 comment on table inventory_levels is 'สแนปช็อตสต็อกคงเหลือ ณ เวลาที่ sync แต่ละรอบ';
 
+create table if not exists stock_thresholds (
+  item_id text primary key,
+  item_name text,
+  threshold numeric not null default 10,
+  updated_by uuid references auth.users(id),
+  updated_at timestamptz not null default now()
+);
+
+comment on table stock_thresholds is 'เกณฑ์สต็อกขั้นต่ำที่ตั้งเองต่อสินค้า ใช้ flag แจ้งเตือนใน v_low_stock';
+
 create table if not exists sync_log (
   id bigint generated always as identity primary key,
   run_at timestamptz not null default now(),
@@ -176,6 +186,35 @@ from budgets b
 full outer join v_monthly_pl pl on pl.month = b.month
 order by month desc;
 
+-- สต็อกล่าสุดของแต่ละสินค้า (เอาแถวล่าสุดต่อ item_id จากทุกสแนปช็อตที่ sync มา)
+create or replace view v_latest_inventory as
+select distinct on (item_id)
+  item_id,
+  item_name,
+  in_stock,
+  snapshot_at
+from inventory_levels
+where item_id is not null
+order by item_id, snapshot_at desc;
+
+-- รายการเกณฑ์สต็อกที่ตั้งไว้ทั้งหมด พร้อมสต็อกปัจจุบัน (ใช้แสดงหน้าจัดการเกณฑ์)
+create or replace view v_stock_watchlist as
+select
+  st.item_id,
+  coalesce(li.item_name, st.item_name) as item_name,
+  li.in_stock,
+  st.threshold
+from stock_thresholds st
+left join v_latest_inventory li on li.item_id = st.item_id
+order by item_name;
+
+-- สินค้าที่สต็อกปัจจุบันต่ำกว่าหรือเท่ากับเกณฑ์ที่ตั้งไว้ ใช้แสดงเป็นการ์ดแจ้งเตือนบน dashboard
+create or replace view v_low_stock as
+select item_id, item_name, in_stock, threshold
+from v_stock_watchlist
+where in_stock is not null and in_stock <= threshold
+order by in_stock asc;
+
 -- ------------------------------------------------------------
 -- 4. Row Level Security — เฉพาะผู้ที่ login (authenticated) เท่านั้นถึงอ่านได้
 --    การเขียนตาราง receipts / receipt_line_items / inventory_levels ทำผ่าน
@@ -188,6 +227,7 @@ alter table inventory_levels enable row level security;
 alter table manual_expenses enable row level security;
 alter table sync_log enable row level security;
 alter table budgets enable row level security;
+alter table stock_thresholds enable row level security;
 
 drop policy if exists "authenticated can read receipts" on receipts;
 create policy "authenticated can read receipts"
@@ -257,6 +297,30 @@ create policy "authenticated can update budgets"
 
 -- budgets เปิดให้เจ้าของร้านทั้ง 3 คนแก้ไขงบของกันและกันได้ (ไม่ผูกกับ created_by)
 -- เพราะเป็นข้อมูลวางแผนร่วมกัน ต่างจาก manual_expenses ที่ผูกกับผู้กรอกแต่ละคน
+
+drop policy if exists "authenticated can read stock_thresholds" on stock_thresholds;
+create policy "authenticated can read stock_thresholds"
+  on stock_thresholds for select
+  to authenticated
+  using (true);
+
+drop policy if exists "authenticated can insert stock_thresholds" on stock_thresholds;
+create policy "authenticated can insert stock_thresholds"
+  on stock_thresholds for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "authenticated can update stock_thresholds" on stock_thresholds;
+create policy "authenticated can update stock_thresholds"
+  on stock_thresholds for update
+  to authenticated
+  using (true);
+
+drop policy if exists "authenticated can delete stock_thresholds" on stock_thresholds;
+create policy "authenticated can delete stock_thresholds"
+  on stock_thresholds for delete
+  to authenticated
+  using (true);
 
 -- หมายเหตุ: views (v_monthly_revenue, v_monthly_expense, v_monthly_pl) จะยึด RLS
 -- ของตารางต้นทางตามค่า default ของ Postgres (security_invoker) — ถ้า Supabase

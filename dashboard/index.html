@@ -49,6 +49,32 @@
       <div id="kpi-grid" class="kpi-grid"></div>
     </div>
 
+    <div class="card">
+      <h2>แจ้งเตือนสต็อกต่ำ</h2>
+      <div id="low-stock-alerts"></div>
+
+      <details style="margin-top:16px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--ink-soft)">จัดการเกณฑ์สต็อกขั้นต่ำ</summary>
+        <form id="stock-threshold-form" class="form-grid" style="margin-top:14px">
+          <select id="stock-item-select" required>
+            <option value="">เลือกสินค้า</option>
+          </select>
+          <input type="number" id="stock-threshold-value" placeholder="เกณฑ์ขั้นต่ำ (ชิ้น)" min="0" step="1" required>
+          <div class="full">
+            <button type="submit">บันทึกเกณฑ์</button>
+          </div>
+          <div id="stock-threshold-message" class="full" style="font-size:13px"></div>
+        </form>
+
+        <table id="stock-watchlist-table" style="margin-top:16px">
+          <thead>
+            <tr><th>สินค้า</th><th>สต็อกปัจจุบัน</th><th>เกณฑ์ขั้นต่ำ</th><th>ลบ</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </div>
+
     <div class="card" id="pl-card">
       <h2>รายรับ-รายจ่าย รายเดือน</h2>
 
