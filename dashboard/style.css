@@ -188,6 +188,18 @@ tbody tr:last-child td { border-bottom: none; }
 .kpi .value.neg { color: var(--danger); }
 .kpi .value.pos { color: var(--ink); }
 
+/* ---------- Budget variance badges ---------- */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.badge.ok { background: #dcfce7; color: var(--success); }
+.badge.warn { background: #fee2e2; color: var(--danger); }
+.badge.neutral { background: #f1f5f9; color: var(--ink-soft); }
+
 /* ---------- Expense form ---------- */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
 .form-grid .full { grid-column: 1 / -1; }

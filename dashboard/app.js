@@ -73,8 +73,11 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   showLogin();
 });
 
+// เกณฑ์ที่ถือว่า "เบี่ยงเบนเกินเกณฑ์" ต้องดูรายละเอียด (ตามแผน ±10%)
+const BUDGET_VARIANCE_THRESHOLD_PCT = 10;
+
 async function loadDashboard() {
-  await Promise.all([loadPL(), loadExpenses(), loadServiceUsage(), loadTimePatterns()]);
+  await Promise.all([loadPL(), loadExpenses(), loadServiceUsage(), loadTimePatterns(), loadBudgetVariance()]);
 }
 
 async function loadPL() {
@@ -339,5 +342,79 @@ async function loadTimePatterns() {
     options: { responsive: true, plugins: { legend: { display: false } } },
   });
 }
+
+function variancePctText(pct) {
+  if (pct === null || pct === undefined) return "-";
+  return `${pct >= 0 ? "+" : ""}${pct}%`;
+}
+
+function varianceBadge(pct, higherIsBad) {
+  if (pct === null || pct === undefined) return '<span class="badge neutral">ยังไม่ตั้งงบ</span>';
+  const isBad = higherIsBad ? pct > BUDGET_VARIANCE_THRESHOLD_PCT : pct < -BUDGET_VARIANCE_THRESHOLD_PCT;
+  const cls = isBad ? "warn" : "ok";
+  const label = isBad ? "เกินเกณฑ์" : "ปกติ";
+  return `<span class="badge ${cls}">${variancePctText(pct)} · ${label}</span>`;
+}
+
+async function loadBudgetVariance() {
+  const { data, error } = await client
+    .from("v_budget_variance")
+    .select("*")
+    .order("month", { ascending: false })
+    .limit(12);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const tbody = document.querySelector("#budget-table tbody");
+  tbody.innerHTML = "";
+  (data || []).forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${monthLabel(row.month)}</td>
+      <td>${thb(row.revenue_budget)}</td>
+      <td>${thb(row.actual_revenue)}</td>
+      <td>${varianceBadge(row.revenue_variance_pct, false)}</td>
+      <td>${thb(row.expense_budget)}</td>
+      <td>${thb(row.actual_expense)}</td>
+      <td>${varianceBadge(row.expense_variance_pct, true)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+document.getElementById("budget-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById("budget-message");
+  msg.textContent = "";
+
+  const { data: sessionData } = await client.auth.getSession();
+  const userId = sessionData.session.user.id;
+
+  const monthValue = document.getElementById("budget-month").value; // "YYYY-MM"
+  if (!monthValue) return;
+
+  const payload = {
+    month: `${monthValue}-01`,
+    revenue_budget: parseFloat(document.getElementById("budget-revenue").value) || 0,
+    expense_budget: parseFloat(document.getElementById("budget-expense").value) || 0,
+    created_by: userId,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await client.from("budgets").upsert(payload, { onConflict: "month" });
+  if (error) {
+    msg.style.color = "#dc2626";
+    msg.textContent = "บันทึกไม่สำเร็จ: " + error.message;
+    return;
+  }
+
+  msg.style.color = "#15803d";
+  msg.textContent = "บันทึกงบประมาณเรียบร้อย";
+  e.target.reset();
+  loadBudgetVariance();
+});
 
 checkSession();

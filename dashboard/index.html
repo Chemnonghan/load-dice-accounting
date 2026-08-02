@@ -71,6 +71,37 @@
     </div>
 
     <div class="card">
+      <h2>ตั้งงบประมาณรายเดือน</h2>
+      <form id="budget-form" class="form-grid">
+        <input type="month" id="budget-month" required>
+        <input type="number" id="budget-revenue" placeholder="เป้ารายได้ (บาท)" min="0" step="1">
+        <input type="number" id="budget-expense" placeholder="งบรายจ่าย (บาท)" min="0" step="1">
+        <div class="full">
+          <button type="submit">บันทึกงบประมาณ</button>
+        </div>
+        <div id="budget-message" class="full" style="font-size:13px"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>งบประมาณเทียบผลจริง</h2>
+      <table id="budget-table">
+        <thead>
+          <tr>
+            <th>เดือน</th>
+            <th>เป้ารายได้</th>
+            <th>รายได้จริง</th>
+            <th>ผลต่าง</th>
+            <th>งบรายจ่าย</th>
+            <th>รายจ่ายจริง</th>
+            <th>ผลต่าง</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
       <h2>บริการที่ใช้บ่อยที่สุด</h2>
       <canvas id="service-usage-chart" height="100"></canvas>
       <table id="service-usage-table" style="margin-top:16px">

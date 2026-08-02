@@ -71,6 +71,17 @@ create table if not exists manual_expenses (
 
 comment on table manual_expenses is 'รายจ่ายที่ไม่ได้อยู่ใน Loyverse POS กรอกโดยผู้ใช้ที่ login แล้ว';
 
+create table if not exists budgets (
+  id uuid primary key default gen_random_uuid(),
+  month date not null unique,           -- เก็บเป็นวันที่ 1 ของเดือนเสมอ เช่น 2026-08-01
+  revenue_budget numeric not null default 0,
+  expense_budget numeric not null default 0,
+  created_by uuid references auth.users(id),
+  updated_at timestamptz not null default now()
+);
+
+comment on table budgets is 'เป้ารายได้/รายจ่ายที่ตั้งไว้รายเดือน ใช้เทียบกับตัวเลขจริงใน v_budget_variance';
+
 -- ------------------------------------------------------------
 -- 3. Views สรุปรายเดือนสำหรับ dashboard
 -- ------------------------------------------------------------
@@ -146,6 +157,25 @@ where revenue_type = 'game_rental'
 group by 1
 order by 1;
 
+-- เทียบงบประมาณที่ตั้งไว้กับตัวเลขจริงรายเดือน (revenue_variance_pct/expense_variance_pct
+-- เป็นบวก = รายได้เกินเป้า/รายจ่ายเกินงบ, ลบ = รายได้ต่ำกว่าเป้า/รายจ่ายต่ำกว่างบ)
+create or replace view v_budget_variance as
+select
+  coalesce(pl.month, b.month) as month,
+  b.revenue_budget,
+  coalesce(pl.total_revenue, 0) as actual_revenue,
+  case when b.revenue_budget > 0
+    then round((coalesce(pl.total_revenue, 0) - b.revenue_budget) / b.revenue_budget * 100, 1)
+  end as revenue_variance_pct,
+  b.expense_budget,
+  coalesce(pl.total_expense, 0) as actual_expense,
+  case when b.expense_budget > 0
+    then round((coalesce(pl.total_expense, 0) - b.expense_budget) / b.expense_budget * 100, 1)
+  end as expense_variance_pct
+from budgets b
+full outer join v_monthly_pl pl on pl.month = b.month
+order by month desc;
+
 -- ------------------------------------------------------------
 -- 4. Row Level Security — เฉพาะผู้ที่ login (authenticated) เท่านั้นถึงอ่านได้
 --    การเขียนตาราง receipts / receipt_line_items / inventory_levels ทำผ่าน
@@ -157,6 +187,7 @@ alter table receipt_line_items enable row level security;
 alter table inventory_levels enable row level security;
 alter table manual_expenses enable row level security;
 alter table sync_log enable row level security;
+alter table budgets enable row level security;
 
 drop policy if exists "authenticated can read receipts" on receipts;
 create policy "authenticated can read receipts"
@@ -205,6 +236,27 @@ create policy "authenticated can delete own manual_expenses"
   on manual_expenses for delete
   to authenticated
   using (auth.uid() = created_by);
+
+drop policy if exists "authenticated can read budgets" on budgets;
+create policy "authenticated can read budgets"
+  on budgets for select
+  to authenticated
+  using (true);
+
+drop policy if exists "authenticated can insert budgets" on budgets;
+create policy "authenticated can insert budgets"
+  on budgets for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "authenticated can update budgets" on budgets;
+create policy "authenticated can update budgets"
+  on budgets for update
+  to authenticated
+  using (true);
+
+-- budgets เปิดให้เจ้าของร้านทั้ง 3 คนแก้ไขงบของกันและกันได้ (ไม่ผูกกับ created_by)
+-- เพราะเป็นข้อมูลวางแผนร่วมกัน ต่างจาก manual_expenses ที่ผูกกับผู้กรอกแต่ละคน
 
 -- หมายเหตุ: views (v_monthly_revenue, v_monthly_expense, v_monthly_pl) จะยึด RLS
 -- ของตารางต้นทางตามค่า default ของ Postgres (security_invoker) — ถ้า Supabase
