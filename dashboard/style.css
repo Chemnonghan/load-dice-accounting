@@ -188,6 +188,37 @@ tbody tr:last-child td { border-bottom: none; }
 .kpi .value.neg { color: var(--danger); }
 .kpi .value.pos { color: var(--ink); }
 
+/* ---------- Toolbar (date range + export) ---------- */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.range-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.range-picker label { font-size: 13px; color: var(--ink-soft); }
+.range-picker input[type="month"] {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--orange-50);
+}
+.export-buttons { display: flex; gap: 8px; }
+.export-buttons button, .range-picker button { padding: 8px 14px; font-size: 13px; }
+
+@media print {
+  body * { visibility: hidden; }
+  #pl-card, #pl-card * { visibility: visible; }
+  #pl-card { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; }
+  .no-print { display: none !important; }
+}
+
 /* ---------- Budget variance badges ---------- */
 .badge {
   display: inline-block;

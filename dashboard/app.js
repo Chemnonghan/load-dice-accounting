@@ -76,16 +76,23 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
 // เกณฑ์ที่ถือว่า "เบี่ยงเบนเกินเกณฑ์" ต้องดูรายละเอียด (ตามแผน ±10%)
 const BUDGET_VARIANCE_THRESHOLD_PCT = 10;
 
+// ช่วงวันที่ที่เลือกดู (เดือน) — ถ้าไม่ได้ตั้งค่า จะ fallback เป็น 12 เดือนล่าสุด
+const dateRange = { from: null, to: null };
+
+// เก็บแถวข้อมูล P&L ล่าสุดที่แสดงผลอยู่ไว้ export (Excel/PDF ใช้ข้อมูลชุดเดียวกับที่เห็นบนตาราง)
+let lastPLRows = [];
+
 async function loadDashboard() {
   await Promise.all([loadPL(), loadExpenses(), loadServiceUsage(), loadTimePatterns(), loadBudgetVariance()]);
 }
 
 async function loadPL() {
-  const { data, error } = await client
-    .from("v_monthly_pl")
-    .select("*")
-    .order("month", { ascending: false })
-    .limit(12);
+  let query = client.from("v_monthly_pl").select("*").order("month", { ascending: false });
+  if (dateRange.from) query = query.gte("month", `${dateRange.from}-01`);
+  if (dateRange.to) query = query.lte("month", `${dateRange.to}-01`);
+  if (!dateRange.from && !dateRange.to) query = query.limit(12);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(error);
@@ -97,17 +104,29 @@ async function loadPL() {
 
   const tbody = document.querySelector("#pl-table tbody");
   tbody.innerHTML = "";
+  lastPLRows = [];
 
   data.forEach((row) => {
     const revForMonth = (revData || []).filter((r) => r.month === row.month);
     const productSale = revForMonth.find((r) => r.revenue_type === "product_sale");
     const gameRental = revForMonth.find((r) => r.revenue_type === "game_rental");
+    const productSaleRevenue = productSale ? productSale.revenue : 0;
+    const gameRentalRevenue = gameRental ? gameRental.revenue : 0;
+
+    lastPLRows.push({
+      monthLabel: monthLabel(row.month),
+      productSaleRevenue,
+      gameRentalRevenue,
+      totalCogs: row.total_cogs,
+      totalExpense: row.total_expense,
+      netIncome: row.net_income,
+    });
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${monthLabel(row.month)}</td>
-      <td>${thb(productSale ? productSale.revenue : 0)}</td>
-      <td>${thb(gameRental ? gameRental.revenue : 0)}</td>
+      <td>${thb(productSaleRevenue)}</td>
+      <td>${thb(gameRentalRevenue)}</td>
       <td>${thb(row.total_cogs)}</td>
       <td>${thb(row.total_expense)}</td>
       <td>${thb(row.net_income)}</td>
@@ -118,6 +137,38 @@ async function loadPL() {
   renderKPI(data[0], data[1]);
   renderTrendChart(data);
 }
+
+document.getElementById("range-apply").addEventListener("click", () => {
+  dateRange.from = document.getElementById("range-from").value || null;
+  dateRange.to = document.getElementById("range-to").value || null;
+  loadPL();
+});
+
+document.getElementById("range-reset").addEventListener("click", () => {
+  document.getElementById("range-from").value = "";
+  document.getElementById("range-to").value = "";
+  dateRange.from = null;
+  dateRange.to = null;
+  loadPL();
+});
+
+document.getElementById("export-excel-btn").addEventListener("click", () => {
+  if (!lastPLRows.length) return;
+  const header = ["เดือน", "รายได้ขาย", "รายได้ค่าเช่าเกม", "ต้นทุนสินค้า", "รายจ่ายอื่น", "กำไรสุทธิ"];
+  const rows = lastPLRows
+    .slice()
+    .reverse() // เก่า -> ใหม่ ให้อ่านง่ายในไฟล์ Excel
+    .map((r) => [r.monthLabel, r.productSaleRevenue, r.gameRentalRevenue, r.totalCogs, r.totalExpense, r.netIncome]);
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "P&L รายเดือน");
+  const filename = `Load-Dice-PL-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  XLSX.writeFile(wb, filename);
+});
+
+document.getElementById("export-pdf-btn").addEventListener("click", () => {
+  window.print();
+});
 
 function renderTrendChart(monthlyRowsDesc) {
   const rows = [...monthlyRowsDesc].reverse(); // เรียงเก่า -> ใหม่ สำหรับกราฟเส้น

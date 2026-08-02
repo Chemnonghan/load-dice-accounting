@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -48,8 +49,24 @@
       <div id="kpi-grid" class="kpi-grid"></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pl-card">
       <h2>รายรับ-รายจ่าย รายเดือน</h2>
+
+      <div class="toolbar no-print">
+        <div class="range-picker">
+          <label>จาก</label>
+          <input type="month" id="range-from">
+          <label>ถึง</label>
+          <input type="month" id="range-to">
+          <button type="button" id="range-apply" class="secondary">แสดงผล</button>
+          <button type="button" id="range-reset" class="secondary">ล่าสุด 12 เดือน</button>
+        </div>
+        <div class="export-buttons">
+          <button type="button" id="export-excel-btn" class="secondary">ดาวน์โหลด Excel</button>
+          <button type="button" id="export-pdf-btn" class="secondary">พิมพ์ / บันทึกเป็น PDF</button>
+        </div>
+      </div>
+
       <table id="pl-table">
         <thead>
           <tr>
