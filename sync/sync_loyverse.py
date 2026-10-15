@@ -71,7 +71,10 @@ def fetch_loyverse_paginated(path, params):
         resp.raise_for_status()
         data = resp.json()
         key = path.strip("/")
-        items = data.get(key, [])
+        items = data.get(key)
+        if items is None:
+            # บาง endpoint ใช้ชื่อ key ใน response ไม่ตรงกับ path (เช่น /inventory -> inventory_levels)
+            items = next((v for v in data.values() if isinstance(v, list)), [])
         results.extend(items)
         cursor = data.get("cursor")
         if not cursor:
@@ -98,6 +101,7 @@ def build_item_category_map():
 
     items = fetch_loyverse_paginated("/items", {"limit": 250})
     item_category_name = {}
+    variant_to_item = {}  # variant_id -> {item_id, item_name} ใช้เติมชื่อสินค้าให้ข้อมูล inventory
     for it in items:
         cat_name = category_name_by_id.get(it.get("category_id"))
         if it.get("id"):
@@ -106,9 +110,10 @@ def build_item_category_map():
             vid = v.get("variant_id") or v.get("id")
             if vid:
                 item_category_name[vid] = cat_name
+                variant_to_item[vid] = {"item_id": it.get("id"), "item_name": it.get("item_name")}
 
     print(f"จับคู่ item/variant ได้ {len(item_category_name)} รายการ")
-    return item_category_name
+    return item_category_name, variant_to_item
 
 
 def upsert_supabase(table, rows):
@@ -187,18 +192,28 @@ def sync_receipts(since_iso, item_category_name):
     return len(receipt_rows)
 
 
-def sync_inventory():
+def sync_inventory(variant_to_item):
     print("ดึง inventory ...")
     inventory_raw = fetch_loyverse_paginated("/inventory", {"limit": 250})
     print(f"พบ inventory {len(inventory_raw)} รายการ")
+    if inventory_raw:
+        # พิมพ์ตัวอย่างแถวแรกไว้ใน log เผื่อต้องตรวจชื่อ field ภายหลัง
+        print(f"ตัวอย่าง inventory แถวแรก: {inventory_raw[0]}")
 
     rows = []
     for inv in inventory_raw:
+        # /inventory ของ Loyverse ส่งมาเฉพาะ variant_id + in_stock (ไม่มีชื่อสินค้า)
+        # จึงต้องเติม item_id/item_name จากตารางจับคู่ที่ดึงมาจาก /items
+        variant_id = inv.get("variant_id")
+        info = variant_to_item.get(variant_id, {})
+        item_id = info.get("item_id") or inv.get("item_id") or variant_id
+        if not item_id:
+            continue
         rows.append(
             {
-                "item_id": inv.get("item_id") or inv.get("variant_id"),
-                "variant_id": inv.get("variant_id"),
-                "item_name": inv.get("item_name") or inv.get("name"),
+                "item_id": item_id,
+                "variant_id": variant_id,
+                "item_name": info.get("item_name") or inv.get("item_name") or inv.get("name"),
                 "in_stock": inv.get("in_stock"),
             }
         )
@@ -212,9 +227,9 @@ def main():
     since_iso = since.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
     try:
-        item_category_name = build_item_category_map()
+        item_category_name, variant_to_item = build_item_category_map()
         n_receipts = sync_receipts(since_iso, item_category_name)
-        n_inventory = sync_inventory()
+        n_inventory = sync_inventory(variant_to_item)
         log_sync("success", f"synced {n_receipts} receipts, {n_inventory} inventory rows")
         print("Sync สำเร็จ")
     except Exception as e:
